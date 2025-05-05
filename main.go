@@ -70,21 +70,7 @@ func main() {
 
 	}
 
-	// // Load and draw first image
-	// img1, err := loadAndResizeImage(fgPath1, fgWidth1, fgHeight1)
-	// if err != nil {
-	// 	return err
-	// }
-	// draw.Draw(canvas, img1.Bounds().Add(image.Pt(posX1, posY1)), img1, image.Point{}, draw.Over)
-
-	// // Load and draw second image
-	// img2, err := loadAndResizeImage(fgPath2, fgWidth2, fgHeight2)
-	// if err != nil {
-	// 	return err
-	// }
-	// draw.Draw(canvas, img2.Bounds().Add(image.Pt(posX2, posY2)), img2, image.Point{}, draw.Over)
-
-	saveImageAsJPEG(canvas, "./output/test.jpg", 100)
+	saveImageAsJPEG(canvas, "./output/test.jpg", 90)
 
 	// // IMPORTANT: Use double backslashes in Go string literals for Windows paths
 	// imagePath := "D:\\home\\Downloads\\twitter\\Drowsy_sheep\\Drowsy_sheep-1910560294415315392-01.jpg"

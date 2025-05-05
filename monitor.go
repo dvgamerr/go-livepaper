@@ -107,8 +107,8 @@ func getCanvas(monitors []MonitorInfo) (int, int) {
 	totalHeight := int(maxY - minY)
 
 	for i := range monitors {
-		monitors[i].resolution.x = monitors[i].resolution.x - minX
-		monitors[i].resolution.y = monitors[i].resolution.y - minY
+		monitors[i].resolution.x -= minX
+		monitors[i].resolution.y -= minY
 	}
 
 	return totalWidth, totalHeight
