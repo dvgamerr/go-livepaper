@@ -7,17 +7,24 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-type RECT struct {
-	Left   int32
-	Top    int32
-	Right  int32
-	Bottom int32
+type Resolution struct {
+	width  int32
+	height int32
+	x      int32
+	y      int32
+}
+
+type Rectangle struct {
+	left   int32
+	top    int32
+	right  int32
+	bottom int32
 }
 
 type MONITORINFO struct {
 	CbSize    uint32
-	RcMonitor RECT
-	RcWork    RECT
+	RcMonitor Rectangle
+	RcWork    Rectangle
 	DwFlags   uint32
 }
 
@@ -28,15 +35,10 @@ var (
 	enumDisplayDevicesW = user32.NewProc("EnumDisplayDevicesW")
 )
 
-type MonitorResolution struct {
-	width  int32
-	height int32
-	x      int32
-	y      int32
-}
 type MonitorInfo struct {
 	index      int
-	resolution MonitorResolution
+	resolution Resolution
+	rectangle  Rectangle
 	primary    bool
 }
 
@@ -55,19 +57,15 @@ func getMonitorInfo(hMonitor windows.Handle, index int) (MonitorInfo, error) {
 		return info, fmt.Errorf("GetMonitorInfoW failed")
 	}
 
-	width := mi.RcMonitor.Bottom - mi.RcMonitor.Top
-	height := mi.RcMonitor.Right - mi.RcMonitor.Left
+	width := mi.RcMonitor.bottom - mi.RcMonitor.top
+	height := mi.RcMonitor.right - mi.RcMonitor.left
 	info.primary = (mi.DwFlags & 1) != 0 // MONITORINFOF_PRIMARY = 1
-	info.resolution = MonitorResolution{
+	info.rectangle = mi.RcMonitor
+	info.resolution = Resolution{
 		width:  width,
 		height: height,
-		x:      mi.RcMonitor.Left,
-		y:      mi.RcMonitor.Top,
-	}
-
-	if !info.primary {
-		info.resolution.x = info.resolution.x * -1
-		info.resolution.y = info.resolution.y * -1
+		x:      mi.RcMonitor.left,
+		y:      mi.RcMonitor.top,
 	}
 
 	return info, nil
