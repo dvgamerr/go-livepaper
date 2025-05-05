@@ -28,16 +28,20 @@ var (
 	enumDisplayDevicesW = user32.NewProc("EnumDisplayDevicesW")
 )
 
+type MonitorResolution struct {
+	width  int32
+	height int32
+	x      int32
+	y      int32
+}
 type MonitorInfo struct {
-	Index      int
-	DeviceName string
-	Resolution string
-	Position   string
-	Primary    bool
+	index      int
+	resolution MonitorResolution
+	primary    bool
 }
 
 func getMonitorInfo(hMonitor windows.Handle, index int) (MonitorInfo, error) {
-	info := MonitorInfo{Index: index}
+	info := MonitorInfo{index: index}
 
 	var mi MONITORINFO
 	mi.CbSize = uint32(unsafe.Sizeof(mi))
@@ -51,11 +55,20 @@ func getMonitorInfo(hMonitor windows.Handle, index int) (MonitorInfo, error) {
 		return info, fmt.Errorf("GetMonitorInfoW failed")
 	}
 
-	width := mi.RcMonitor.Right - mi.RcMonitor.Left
-	height := mi.RcMonitor.Bottom - mi.RcMonitor.Top
-	info.Resolution = fmt.Sprintf("%dx%d", width, height)
-	info.Position = fmt.Sprintf("(%d,%d)", mi.RcMonitor.Left, mi.RcMonitor.Top)
-	info.Primary = (mi.DwFlags & 1) != 0 // MONITORINFOF_PRIMARY = 1
+	width := mi.RcMonitor.Bottom - mi.RcMonitor.Top
+	height := mi.RcMonitor.Right - mi.RcMonitor.Left
+	info.primary = (mi.DwFlags & 1) != 0 // MONITORINFOF_PRIMARY = 1
+	info.resolution = MonitorResolution{
+		width:  width,
+		height: height,
+		x:      mi.RcMonitor.Left,
+		y:      mi.RcMonitor.Top,
+	}
+
+	if !info.primary {
+		info.resolution.x = info.resolution.x * -1
+		info.resolution.y = info.resolution.y * -1
+	}
 
 	return info, nil
 }

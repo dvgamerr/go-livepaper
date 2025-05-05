@@ -9,6 +9,14 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
+// WallpaperStyle defines the type for wallpaper display styles.
+type WallpaperStyle int
+
+const (
+	STYLE_SPAN WallpaperStyle = 22
+	STYLE_FILL WallpaperStyle = 10
+)
+
 const (
 	spiSetDeskWallpaper = 0x0014
 	spifUpdateINIFile   = 0x01
@@ -30,17 +38,8 @@ func setWallpaper(imagePath string) error {
 		return fmt.Errorf("failed to convert path to UTF16 pointer: %w", err)
 	}
 
-	fmt.Println("Setting wallpaper style to Span...")
-	if err := setWallpaperStyleSpan(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error setting wallpaper style: %v\n", err)
-	}
-
-	ret, _, err := systemParametersInfo.Call(
-		spiSetDeskWallpaper,
-		0, // uiParam - not used for setting wallpaper path
-		uintptr(unsafe.Pointer(imagePathPtr)),
-		spifUpdateINIFile|spifSendChange,
-	)
+	// uiParam - not used for setting wallpaper path
+	ret, _, err := systemParametersInfo.Call(spiSetDeskWallpaper, 0, uintptr(unsafe.Pointer(imagePathPtr)), spifUpdateINIFile|spifSendChange)
 
 	if ret == 0 {
 		// If ret is 0, check the error. If err is nil, it might still be an issue.
@@ -61,32 +60,31 @@ func setWallpaper(imagePath string) error {
 	return nil
 }
 
-func setWallpaperStyleSpan() error {
+// setWallpaperStyle sets the desktop wallpaper style in the Windows registry.
+func setWallpaperStyle(style WallpaperStyle) error {
 	key, err := registry.OpenKey(registry.CURRENT_USER, `Control Panel\Desktop`, registry.SET_VALUE)
 	if err != nil {
 		return fmt.Errorf("failed to open registry key: %w", err)
 	}
 	defer key.Close()
+	const tileValue = "0"
 
-	// For Span mode: WallpaperStyle=22, TileWallpaper=0
-	if err = key.SetStringValue("WallpaperStyle", "22"); err != nil {
+	if err = key.SetStringValue("WallpaperStyle", fmt.Sprintf("%d", style)); err != nil {
 		return fmt.Errorf("failed to set WallpaperStyle registry value: %w", err)
 	}
 
-	if err = key.SetStringValue("TileWallpaper", "0"); err != nil {
+	if err = key.SetStringValue("TileWallpaper", tileValue); err != nil {
 		return fmt.Errorf("failed to set TileWallpaper registry value: %w", err)
 	}
 
 	// Need to broadcast the change again after registry modification
-	ret, _, err := systemParametersInfo.Call(
-		spiSetDeskWallpaper,
-		0,
-		0, // Use 0 or an empty string pointer when only updating style
-		spifUpdateINIFile|spifSendChange,
-	)
-	if ret == 0 {
+	if ret, _, err := systemParametersInfo.Call(spiSetDeskWallpaper, 0, 0, spifUpdateINIFile|spifSendChange); ret == 0 {
 		if err != nil && err.Error() != "The operation completed successfully." {
 			return fmt.Errorf("failed to broadcast registry change (SystemParametersInfo call failed): %w", err)
+		}
+	} else {
+		if err != nil && err.Error() != "The operation completed successfully." {
+			fmt.Printf("SystemParametersInfo returned non-zero (%d) after style change but reported an error: %v. Proceeding cautiously.\n", ret, err)
 		}
 	}
 
