@@ -42,6 +42,16 @@ type MonitorInfo struct {
 	primary    bool
 }
 
+func monitorEnumProc(hMonitor, hdcMonitor, lprcMonitor uintptr, dwData *uintptr) uintptr {
+	// Convert uintptr to unsafe.Pointer according to the rules
+	monitors := (*[]MonitorInfo)(unsafe.Pointer(dwData))
+	info, err := getMonitorInfo(windows.Handle(hMonitor), len(*monitors))
+	if err == nil {
+		*monitors = append(*monitors, info)
+	}
+	return 1 // Continue enumeration
+}
+
 func getMonitorInfo(hMonitor windows.Handle, index int) (MonitorInfo, error) {
 	info := MonitorInfo{index: index}
 
@@ -57,8 +67,8 @@ func getMonitorInfo(hMonitor windows.Handle, index int) (MonitorInfo, error) {
 		return info, fmt.Errorf("GetMonitorInfoW failed")
 	}
 
-	width := mi.RcMonitor.bottom - mi.RcMonitor.top
-	height := mi.RcMonitor.right - mi.RcMonitor.left
+	width := mi.RcMonitor.right - mi.RcMonitor.left
+	height := mi.RcMonitor.bottom - mi.RcMonitor.top
 	info.primary = (mi.DwFlags & 1) != 0 // MONITORINFOF_PRIMARY = 1
 	info.rectangle = mi.RcMonitor
 	info.resolution = Resolution{
@@ -71,17 +81,40 @@ func getMonitorInfo(hMonitor windows.Handle, index int) (MonitorInfo, error) {
 	return info, nil
 }
 
-func monitorEnumProc(hMonitor, hdcMonitor, lprcMonitor uintptr, dwData *uintptr) uintptr {
-	// Convert uintptr to unsafe.Pointer according to the rules
-	monitors := (*[]MonitorInfo)(unsafe.Pointer(dwData))
-	info, err := getMonitorInfo(windows.Handle(hMonitor), len(*monitors))
-	if err == nil {
-		*monitors = append(*monitors, info)
+func getCanvas(monitors []MonitorInfo) (int, int) {
+	minX := monitors[0].resolution.x
+	minY := monitors[0].resolution.y
+	maxX := monitors[0].resolution.x + monitors[0].resolution.width
+	maxY := monitors[0].resolution.y + monitors[0].resolution.height
+
+	for _, m := range monitors[1:] {
+		res := &m.resolution
+		if res.x < minX {
+			minX = res.x
+		}
+		if res.y < minY {
+			minY = res.y
+		}
+		if res.x+res.width > maxX {
+			maxX = res.x + res.width
+		}
+		if res.y+res.height > maxY {
+			maxY = res.y + res.height
+		}
 	}
-	return 1 // Continue enumeration
+
+	totalWidth := int(maxX - minX)
+	totalHeight := int(maxY - minY)
+
+	for i := range monitors {
+		monitors[i].resolution.x = monitors[i].resolution.x - minX
+		monitors[i].resolution.y = monitors[i].resolution.y - minY
+	}
+
+	return totalWidth, totalHeight
 }
 
-func getMonitors() []MonitorInfo {
+func getMonitors() (int, int, []MonitorInfo) {
 	var monitors []MonitorInfo
 	enumDisplayMonitors.Call(
 		0,
@@ -89,5 +122,6 @@ func getMonitors() []MonitorInfo {
 		windows.NewCallback(monitorEnumProc),
 		uintptr(unsafe.Pointer(&monitors)),
 	)
-	return monitors
+	totalWidth, totalHeight := getCanvas(monitors)
+	return totalWidth, totalHeight, monitors
 }
