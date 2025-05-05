@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/draw"
 	"log"
+	"os"
 
 	"github.com/alexflint/go-arg"
 )
@@ -24,6 +25,7 @@ func init() {
 // Args defines the command line arguments
 type Args struct {
 	Monitor   []string `arg:"-m,--monitor" help:"Target monitors to set wallpaper (e.g. -m 1 -m 2)"`
+	Clean     bool     `arg:"-c,--clean" help:"Clean all temporary files"`
 	Wallpaper []string `arg:"positional" help:"Wallpaper is a list of file paths to wallpaper images"`
 }
 
@@ -32,6 +34,17 @@ var args Args
 func main() {
 	// Define command line arguments
 	arg.MustParse(&args)
+
+	// Handle clean flag if specified
+	if args.Clean {
+		if err := cleanTempDir(); err != nil {
+			log.Printf("Error cleaning temp directory: %v\n", err)
+		} else {
+			log.Println("Temporary files cleaned successfully")
+			return
+		}
+	}
+
 	if len(args.Wallpaper) == 0 {
 		log.Fatalf("No wallpaper specified. Please provide at least one wallpaper image path.")
 	}
@@ -69,13 +82,16 @@ func main() {
 		draw.Draw(canvas, img1.Bounds().Add(image.Pt(int(monitor.resolution.x), int(monitor.resolution.y))), img1, image.Point{}, draw.Over)
 
 	}
+	outputPath, err := saveImageAs(canvas, 90)
+	if err != nil {
+		log.Printf("Error saving image: %v\n", err)
+	}
 
-	saveImageAsJPEG(canvas, "./output/test.jpg", 90)
+	log.Printf("saved to: %s\n", outputPath)
 
 	// // IMPORTANT: Use double backslashes in Go string literals for Windows paths
-	// imagePath := "D:\\home\\Downloads\\twitter\\Drowsy_sheep\\Drowsy_sheep-1910560294415315392-01.jpg"
-	// if err := setWallpaper(imagePath); err != nil {
-	// 	log.Printf("Error setting wallpaper: %v\n", err)
-	// 	os.Exit(1)
-	// }
+	if err := setWallpaper(outputPath); err != nil {
+		log.Printf("Error setting wallpaper: %v\n", err)
+		os.Exit(1)
+	}
 }
