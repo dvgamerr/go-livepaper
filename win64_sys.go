@@ -80,7 +80,6 @@ func setWallpaperStyle(style WallpaperStyle) error {
 		return fmt.Errorf("failed to set TileWallpaper registry value: %w", err)
 	}
 
-	// Need to broadcast the change again after registry modification
 	if err := broadcastSettingChange(0, spifUpdateINIFile|spifSendChange); err != nil {
 		return fmt.Errorf("failed to broadcast registry change: %w", err)
 	}
