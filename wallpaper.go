@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/nfnt/resize"
-	"github.com/rwcarlsen/goexif/exif"
 )
 
 func resizeImageToFill(img image.Image, orientation int, width, height uint) (image.Image, image.Point) {
@@ -48,84 +47,6 @@ func resizeImageToFill(img image.Image, orientation int, width, height uint) (im
 	return resized, image.Point{X: offsetX, Y: offsetY}
 }
 
-func applyOrientation(img image.Image, orientation int) image.Image {
-	bounds := img.Bounds()
-	width := bounds.Dx()
-	height := bounds.Dy()
-
-	switch orientation {
-	case 1:
-		// 0 degrees: the correct orientation, no adjustment required
-		return img
-	case 2:
-		// 0 degrees, mirrored: image has been flipped back-to-front
-		dst := image.NewRGBA(bounds)
-		for y := range height {
-			for x := range width {
-				dst.Set(width-x-1, y, img.At(x, y))
-			}
-		}
-		return dst
-	case 3:
-		// 180 degrees: image is upside down
-		dst := image.NewRGBA(bounds)
-		for y := range height {
-			for x := range width {
-				dst.Set(width-x-1, height-y-1, img.At(x, y))
-			}
-		}
-		return dst
-	case 4:
-		// 180 degrees, mirrored: image has been flipped back-to-front and is upside down
-		dst := image.NewRGBA(bounds)
-		for y := range height {
-			for x := range width {
-				dst.Set(x, height-y-1, img.At(x, y))
-			}
-		}
-		return dst
-	case 5:
-		// 90 degrees: image has been flipped back-to-front and is on its side
-		dst := image.NewRGBA(image.Rect(0, 0, height, width))
-		for y := range height {
-			for x := range width {
-				dst.Set(y, width-x-1, img.At(x, y))
-			}
-		}
-		return dst
-	case 6:
-		// 90 degrees, mirrored: image is on its side
-		dst := image.NewRGBA(image.Rect(0, 0, height, width))
-		for y := range height {
-			for x := range width {
-				dst.Set(height-y-1, x, img.At(x, y))
-			}
-		}
-		return dst
-	case 7:
-		// 270 degrees: image has been flipped back-to-front and is on its far side
-		dst := image.NewRGBA(image.Rect(0, 0, height, width))
-		for y := range height {
-			for x := range width {
-				dst.Set(y, x, img.At(x, y))
-			}
-		}
-		return dst
-	case 8:
-		// 270 degrees, mirrored: image is on its far side
-		dst := image.NewRGBA(image.Rect(0, 0, height, width))
-		for y := range height {
-			for x := range width {
-				dst.Set(height-y-1, width-x-1, img.At(x, y))
-			}
-		}
-		return dst
-	default:
-		// Unknown orientation, return original image
-		return img
-	}
-}
-
 func loadAndResizeImage(path string, width, height uint) (image.Image, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -144,22 +65,7 @@ func loadAndResizeImage(path string, width, height uint) (image.Image, error) {
 	}
 
 	// Try to extract EXIF data
-	orientation := 1
-	exifData, err := exif.Decode(file)
-	if err != nil {
-		// Continue even if EXIF extraction fails
-		fmt.Println("Warning: Could not extract EXIF data:", err)
-	} else {
-		// Process EXIF data if needed
-		// For example, to check orientation:
-		if data, err := exifData.Get(exif.Orientation); err == nil {
-			if val, err := data.Int(0); err == nil {
-				orientation = val
-				fmt.Println("Image orientation:", val)
-			}
-		}
-	}
-
+	orientation := getOrientation(file)
 	resized, offset := resizeImageToFill(img, orientation, width, height)
 	result := image.NewRGBA(image.Rect(0, 0, int(width), int(height)))
 	draw.Draw(result, result.Bounds(), resized, offset, draw.Src)
