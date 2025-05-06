@@ -57,7 +57,7 @@ func setWallpaper(imagePath string) error {
 		return fmt.Errorf("failed to convert path to UTF16 pointer: %w", err)
 	}
 
-	if err := broadcastSettingChange(uintptr(unsafe.Pointer(imagePathPtr)), spifUpdateINIFile|spifSendChange); err != nil {
+	if err := broadcastSettingChange(uintptr(unsafe.Pointer(imagePathPtr)), spifSendChange); err != nil {
 		return fmt.Errorf("failed to set wallpaper: %w", err)
 	}
 
